@@ -66,26 +66,36 @@ export async function getMonster(index) {
   return apiFetch(`${BASE_URL}/monsters/${encodeURIComponent(index)}`);
 }
 
+// All valid D&D 5e CR values — used to iterate the API's per-CR filter endpoint.
+const VALID_CRS = [
+  0, 0.125, 0.25, 0.5,
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+];
+
 /**
- * Returns all monsters whose challenge_rating falls within [minCR, maxCR] (inclusive).
- * Fetches the full monster list first, then retrieves each monster individually.
- * Individual monster fetches are parallelised and cached, so subsequent calls are fast.
+ * Returns lightweight monster stubs for all monsters in [minCR, maxCR].
+ * Uses the API's built-in CR filter — one request per CR value in range,
+ * not one per monster. Each stub is annotated with challenge_rating so
+ * the UI can display it without a full stat block fetch.
  *
- * @param {number} minCR - Minimum challenge rating (inclusive).
- * @param {number} maxCR - Maximum challenge rating (inclusive).
- * @returns {Promise<Object[]>} Array of full monster objects within the CR range.
+ * @param {number} minCR
+ * @param {number} maxCR
+ * @returns {Promise<Array<{ index: string, name: string, url: string, challenge_rating: number }>>}
  */
-export async function getMonstersByCR(minCR, maxCR) {
+export async function getMonsterListByCR(minCR, maxCR) {
   if (minCR > maxCR) {
-    throw new Error(`getMonstersByCR: minCR (${minCR}) must be <= maxCR (${maxCR})`);
+    throw new Error(`getMonsterListByCR: minCR (${minCR}) must be <= maxCR (${maxCR})`);
   }
 
-  const list = await getMonsterList();
+  const crsInRange = VALID_CRS.filter((cr) => cr >= minCR && cr <= maxCR);
 
-  // Fetch all monsters in parallel, then filter by CR client-side.
-  const monsters = await Promise.all(list.map(({ index }) => getMonster(index)));
-
-  return monsters.filter(
-    (m) => m.challenge_rating >= minCR && m.challenge_rating <= maxCR
+  const buckets = await Promise.all(
+    crsInRange.map(async (cr) => {
+      const data = await apiFetch(`${BASE_URL}/monsters?challenge_rating=${cr}`);
+      return (data.results ?? []).map((stub) => ({ ...stub, challenge_rating: cr }));
+    })
   );
+
+  return buckets.flat();
 }

@@ -40,7 +40,7 @@ const SET_LOADING_SCENE  = 'SET_LOADING_SCENE';
 function encounterReducer(state, action) {
   switch (action.type) {
     case SET_PARTY:
-      return { ...state, party: { size: action.size, level: action.level } };
+      return { ...state, party: { size: Math.max(1, Math.min(10, action.size || 4)), level: action.level } };
 
     case SET_SETTING:
       return { ...state, setting: action.setting };
