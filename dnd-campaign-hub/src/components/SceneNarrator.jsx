@@ -72,10 +72,21 @@ export default function SceneNarrator({
         </p>
       )}
 
-      {!error && !isLoadingScene && scene && (
-        <blockquote className="scene-narrator__scene">
-          {scene}
-        </blockquote>
+      {!error && scene && (
+        <div className="scene-narrator__scene-wrap">
+          {isLoadingScene && (
+            <div className="scene-narrator__overlay">
+              <span className="scene-narrator__overlay-text">Rewriting scene&#8230;</span>
+            </div>
+          )}
+          <blockquote className={`scene-narrator__scene${isLoadingScene ? ' scene-narrator__scene--stale' : ''}`}>
+            {scene}
+          </blockquote>
+        </div>
+      )}
+
+      {!error && isLoadingScene && !scene && (
+        <p className="scene-narrator__empty">Writing scene&#8230;</p>
       )}
 
       {!error && !isLoadingScene && !scene && (

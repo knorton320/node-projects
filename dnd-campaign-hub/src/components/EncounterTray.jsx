@@ -2,6 +2,7 @@
 // and an XP summary with a colour-coded difficulty badge.
 
 import { getXPMultiplier } from '../utils/xpCalculator.js';
+import { formatCR } from '../utils/formatCR.js';
 
 /** Maps difficulty label → CSS class suffix for the badge colour. */
 const DIFFICULTY_CLASS = {
@@ -13,12 +14,6 @@ const DIFFICULTY_CLASS = {
 };
 
 /** Format fractional CRs as readable strings. */
-function formatCR(cr) {
-  if (cr === 0.125) return '1/8';
-  if (cr === 0.25)  return '1/4';
-  if (cr === 0.5)   return '1/2';
-  return String(cr);
-}
 
 /**
  * @param {{

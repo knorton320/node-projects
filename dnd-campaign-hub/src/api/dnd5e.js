@@ -14,33 +14,40 @@ const cache = new Map();
  * @param {string} url
  * @returns {Promise<any>}
  */
-async function apiFetch(url) {
+function apiFetch(url) {
   if (cache.has(url)) {
     return cache.get(url);
   }
 
-  let response;
-  try {
-    response = await fetch(url);
-  } catch (networkError) {
-    throw new Error(`D&D 5e API network error for "${url}": ${networkError.message}`);
-  }
+  const promise = (async () => {
+    let response;
+    try {
+      response = await fetch(url);
+    } catch (networkError) {
+      cache.delete(url);
+      throw new Error(`D&D 5e API network error for "${url}": ${networkError.message}`);
+    }
 
-  if (!response.ok) {
-    throw new Error(
-      `D&D 5e API responded with ${response.status} ${response.statusText} for "${url}"`
-    );
-  }
+    if (!response.ok) {
+      cache.delete(url);
+      throw new Error(
+        `D&D 5e API responded with ${response.status} ${response.statusText} for "${url}"`
+      );
+    }
 
-  let data;
-  try {
-    data = await response.json();
-  } catch (parseError) {
-    throw new Error(`D&D 5e API returned invalid JSON for "${url}": ${parseError.message}`);
-  }
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      cache.delete(url);
+      throw new Error(`D&D 5e API returned invalid JSON for "${url}": ${parseError.message}`);
+    }
 
-  cache.set(url, data);
-  return data;
+    return data;
+  })();
+
+  cache.set(url, promise);
+  return promise;
 }
 
 /**

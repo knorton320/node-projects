@@ -1,6 +1,8 @@
 // Party configuration bar rendered at the top of the right column.
 // Controls party size, average level, and encounter setting; shows the suggested CR range.
 
+import { formatCR } from '../utils/formatCR.js';
+
 const SETTINGS = [
   'Forest',
   'Dungeon',
@@ -29,14 +31,6 @@ export default function PartySetup({ party, setting, crRange, onSetParty, onSetS
 
   function handleSetting(e) {
     onSetSetting(e.target.value);
-  }
-
-  // Format CR fractions for display (0.125 => "1/8", 0.25 => "1/4", 0.5 => "1/2")
-  function formatCR(cr) {
-    if (cr === 0.125) return '1/8';
-    if (cr === 0.25)  return '1/4';
-    if (cr === 0.5)   return '1/2';
-    return String(cr);
   }
 
   return (
