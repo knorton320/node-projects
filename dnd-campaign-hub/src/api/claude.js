@@ -1,7 +1,7 @@
 // Handles communication with the Anthropic Messages API.
 // Generates atmospheric D&D scene descriptions from encounter and party context.
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_API_URL = '/anthropic/v1/messages';
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 300;
 
@@ -69,6 +69,7 @@ export async function generateSceneDescription({ monsters, partySize, partyLevel
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify(body),
     });
