@@ -72,7 +72,8 @@ export function getXPMultiplier(totalMonsterCount) {
  * getDifficulty(5000, 4, 5) // => "Deadly"   (5000 / 4 = 1250 >= deadly 1100)
  */
 export function getDifficulty(adjustedXP, partySize, partyLevel) {
-  const thresholds = xpThresholds[partyLevel];
+  const clampedLevel = Math.max(1, Math.min(20, partyLevel));
+  const thresholds = xpThresholds[clampedLevel];
   const xpPerPlayer = adjustedXP / partySize;
 
   if (xpPerPlayer < thresholds.easy) return 'Trivial';
