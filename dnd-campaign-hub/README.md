@@ -64,7 +64,7 @@ A browser-based encounter builder for Dungeons & Dragons 5th Edition. Search the
 ### Installation
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/knorton320/node-projects/tree/3338652206d4391454bd15a024f598077c8d870b/dnd-campaign-hub
 cd dnd-campaign-hub
 npm install
 ```
