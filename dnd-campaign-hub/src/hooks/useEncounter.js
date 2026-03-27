@@ -140,9 +140,8 @@ export function useEncounter() {
   }), [rawDispatch]);
 
   // Derived values — recomputed only when monsters or party changes.
+  const { monsters, party } = state;
   const derived = useMemo(() => {
-    const { monsters, party } = state;
-
     const totalXP = monsters.reduce(
       (sum, { monster, count }) => sum + (monster.xp ?? 0) * count,
       0
@@ -160,7 +159,7 @@ export function useEncounter() {
     const crRange = getMonsterCRRange(party.level);
 
     return { totalXP, adjustedXP, difficulty, crRange };
-  }, [state.monsters, state.party]);
+  }, [monsters, party]);
 
   return { state, dispatch, derived };
 }
