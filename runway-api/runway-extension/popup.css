@@ -1,0 +1,239 @@
+/* ── Reset & Base ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #f8f9fb;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  background: #1f3864;
+  color: white;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.header-text h1 {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.tagline {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 1px;
+}
+
+/* ── Settings ────────────────────────────────────────────────────────── */
+.settings {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: white;
+}
+
+label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 4px;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #dde1e8;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #1a1a1a;
+  background: #f8f9fb;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus {
+  border-color: #2563eb;
+  background: white;
+}
+
+.input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.input-row input {
+  flex: 1;
+}
+
+button {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #1f3864;
+  color: white;
+  transition: background 0.15s, transform 0.1s;
+}
+
+button:hover { background: #2a4d8a; }
+button:active { transform: scale(0.97); }
+
+button.secondary {
+  background: #e8ecf3;
+  color: #1f3864;
+}
+
+button.secondary:hover { background: #dde3ef; }
+
+button.small {
+  font-size: 11px;
+  padding: 5px 10px;
+}
+
+button.saved {
+  background: #16a34a;
+}
+
+.hint {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e8ecf3;
+}
+
+/* ── Status Section ──────────────────────────────────────────────────── */
+.status-section {
+  padding: 14px 16px;
+}
+
+.status-section h2 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 10px;
+}
+
+/* ── State panels ────────────────────────────────────────────────────── */
+.state { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.state.hidden { display: none; }
+
+.muted {
+  color: #999;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 10px 0;
+}
+
+/* ── Loading state ───────────────────────────────────────────────────── */
+.source-image-wrap {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e8ecf3;
+}
+
+.source-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.progress-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Spinner */
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #e8ecf3;
+  border-top-color: #1f3864;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+#loadingMessage {
+  font-size: 12px;
+  color: #555;
+  font-weight: 600;
+}
+
+.progress-bar-track {
+  width: 100%;
+  height: 5px;
+  background: #e8ecf3;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #1f3864;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+/* ── Complete state ──────────────────────────────────────────────────── */
+video {
+  width: 100%;
+  border-radius: 8px;
+  background: black;
+}
+
+.download-btn {
+  width: 100%;
+  padding: 9px;
+  font-size: 13px;
+  background: #16a34a;
+}
+
+.download-btn:hover { background: #15803d; }
+
+/* ── Error state ─────────────────────────────────────────────────────── */
+.error-icon {
+  font-size: 28px;
+}
+
+.error-text {
+  font-size: 12px;
+  color: #b91c1c;
+  text-align: center;
+  line-height: 1.5;
+}
