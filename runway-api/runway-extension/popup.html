@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Animate with Runway</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header>
+    <img src="icons/icon.png" alt="KN" class="logo" />
+    <div class="header-text">
+      <h1>Animate with Runway</h1>
+      <p class="tagline">AI video generation</p>
+    </div>
+  </header>
+
+  <!-- ── Settings Section ───────────────────────────────────────────────── -->
+  <section class="settings">
+    <label for="apiKey">Runway API Key</label>
+    <div class="input-row">
+      <input type="password" id="apiKey" placeholder="paste your API key here" />
+      <button id="saveKey">Save</button>
+    </div>
+
+    <label for="defaultPrompt">Default Prompt</label>
+    <input type="text" id="defaultPrompt" placeholder="cinematic motion, dramatic lighting" />
+    <button id="savePrompt" class="secondary">Save Prompt</button>
+
+    <p class="hint">Right-click any image on any webpage → "Animate with Runway ✨"</p>
+  </section>
+
+  <hr />
+
+  <!-- ── Job Status Section ─────────────────────────────────────────────── -->
+  <section class="status-section">
+    <h2>Latest Generation</h2>
+
+    <!-- Idle state -->
+    <div id="stateIdle" class="state">
+      <p class="muted">No generation in progress.<br/>Right-click an image to get started.</p>
+    </div>
+
+    <!-- Pending / Submitting / Generating -->
+    <div id="stateLoading" class="state hidden">
+      <div class="source-image-wrap">
+        <img id="sourceImage" class="source-image" src="" alt="Source" />
+      </div>
+      <div class="progress-wrap">
+        <div class="spinner"></div>
+        <p id="loadingMessage">Submitting to Runway...</p>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Complete -->
+    <div id="stateComplete" class="state hidden">
+      <video id="videoPreview" autoplay loop muted controls></video>
+      <button id="downloadBtn" class="download-btn">⬇ Download Video</button>
+    </div>
+
+    <!-- Error -->
+    <div id="stateError" class="state hidden">
+      <p class="error-icon">⚠️</p>
+      <p id="errorMessage" class="error-text"></p>
+      <button id="clearError" class="secondary small">Dismiss</button>
+    </div>
+
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

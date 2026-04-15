@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Animate with Runway",
+  "version": "1.0",
+  "description": "Right-click any image to animate it with Runway AI",
+
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "downloads"
+  ],
+
+  "host_permissions": [
+    "https://api.dev.runwayml.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icons/icon.png"
+    }
+  },
+
+  "icons": {
+    "128": "icons/icon.png"
+  }
+}
