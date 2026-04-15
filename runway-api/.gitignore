@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables - NEVER commit real keys
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Build and dist
+dist/
+dist-ssr/
+build/
+*.local
+out/
+
+# IDE and Editor files
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.iml
+.code-workspace
+
+# OS files
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# IDE workspace
+.vscode/settings.json
+.vscode/launch.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Optional npm cache
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
