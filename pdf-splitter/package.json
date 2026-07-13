@@ -1,0 +1,14 @@
+{
+  "name": "pdf-splitter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Split a PDF into multiple files each under a given size limit",
+  "main": "split-pdf.js",
+  "scripts": {
+    "start": "node split-pdf.js"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  }
+}
