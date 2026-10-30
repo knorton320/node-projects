@@ -69,14 +69,17 @@ export async function openSession({ headless, profileDir, storageState, url }) {
     locale: 'en-US',
     timezoneId: 'America/New_York',
   };
+  // Playwright's own signal handlers close the browser and then kill the process (exit code 130),
+  // which would pre-empt the watcher's clean shutdown. Our scripts handle SIGINT/SIGTERM themselves.
+  const launchOpts = { headless, handleSIGINT: false, handleSIGTERM: false, handleSIGHUP: false };
 
   let browser = null;
   let context;
   if (storageState) {
-    browser = await chromium.launch({ headless });
+    browser = await chromium.launch(launchOpts);
     context = await browser.newContext({ storageState, ...opts });
   } else {
-    context = await chromium.launchPersistentContext(profileDir, { headless, ...opts });
+    context = await chromium.launchPersistentContext(profileDir, { ...launchOpts, ...opts });
   }
 
   const close = async () => {

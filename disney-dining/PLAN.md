@@ -779,7 +779,7 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
 
 ### 5A: Mac watch mode
 
-- [ ] **5.1 Create `scripts/watch.js`** (npm script `watch`). It opens **one** browser session and keeps it.
+- [x] **5.1 Create `scripts/watch.js`** (npm script `watch`). It opens **one** browser session and keeps it.
   - In a loop: reload the page (handling Queue-it the same way), run the same steps as
     `run-check.js`, then sleep. Move the shared steps into a function `runOnce({ page, config })`
     in `src/check.js`, so both scripts use the same code.
@@ -787,32 +787,35 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
   - When a run has errors, double the sleep, up to 60 minutes. Reset it after a success.
   - If 3 runs in a row have errors, close and reopen the browser session.
   - On `SIGINT`/`SIGTERM`, close the browser and exit cleanly.
-- [ ] **5.2 Add logging to a file.** Append each run's summary to `local/logs/watch.log` as well as
+- [x] **5.2 Add logging to a file.** Append each run's summary to `local/logs/watch.log` as well as
   the console. Each time the script starts, if the file is over 5 MB, rename it to `watch.log.1`
   (keep only one old file).
-- [ ] **5.3 Update `README.md`** with: `caffeinate -i npm run watch`. `caffeinate` keeps the Mac awake
+- [x] **5.3 Update `README.md`** with: `caffeinate -i npm run watch`. `caffeinate` keeps the Mac awake
   while the watcher runs.
-- [ ] **5.4 Verify:** run `CHECK_INTERVAL_MIN=1 npm run watch` for about 3 cycles, then press Ctrl+C.
+- [x] **5.4 Verify:** run `CHECK_INTERVAL_MIN=1 npm run watch` for about 3 cycles, then press Ctrl+C.
   Logs show 3 runs, there are no duplicate alerts, and it exits cleanly.
 
+> **⏭️ 5B was skipped on 2026-10-30 at the user's request: Mac-only is fine.** Tasks 5.5–5.12 are
+> marked `skipped` below and were not done. Reason: Phase 2 found headless Chromium is blocked.
+>
 > **⚠️ Phase 2 finding: headless Chromium is blocked.** `HEADLESS=true` fails at page load with
 > `net::ERR_HTTP2_PROTOCOL_ERROR`. 5A (visible browser on the Mac) is unaffected. 5B needs a headless
 > browser on a VM, so it is **blocked** until that's solved. Don't work around it silently; ask the
 > user first (the options are a headed browser under a virtual display such as Xvfb, or Playwright's
 > `chromium` channel with `--headless=new`, and either one is a bot-detection risk to weigh).
 
-### 5B: Oracle Cloud VM with cron (only after 5A works)
+### 5B: Oracle Cloud VM with cron (only after 5A works) — SKIPPED (headless blocked)
 
-- [ ] **5.5 Create `scripts/export-session.js`** (npm script `export-session`). It opens the persistent
+- [x] ~~skipped~~ **5.5 Create `scripts/export-session.js`** (npm script `export-session`). It opens the persistent
   profile headless, loads the booking page, saves `context.storageState()` to
   `local/storage-state.json`, and prints a reminder that **this file is a login secret**.
-- [ ] **5.6 🛑 USER STOP (VM access):** ask the user for:
+- [x] ~~skipped~~ **5.6 🛑 USER STOP (VM access):** ask the user for:
   - the SSH host alias for the VM (from their `~/.ssh/config`)
   - whether the VM is ARM (Ampere) or x86
   - confirmation that `node-projects` can be cloned on it (`git clone` of their GitHub repo)
 
   Don't guess hostnames.
-- [ ] **5.7 Set up the VM over SSH:**
+- [x] ~~skipped~~ **5.7 Set up the VM over SSH:**
   - install Node 24: `curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash - && sudo apt-get install -y nodejs`
     (if the VM isn't Debian/Ubuntu, stop and ask)
   - clone the repo
@@ -820,20 +823,20 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
   - create `.env` with `HEADLESS=true`, `STORAGE_STATE=local/storage-state.json` and the webhook
     variables. **The user pastes the webhook URL themselves.** Never set `AUTO_HOLD` on the VM;
     a hold there can't be finished (see Decision 7).
-- [ ] **5.8 Copy the session:** run `npm run export-session` on the Mac, then
+- [x] ~~skipped~~ **5.8 Copy the session:** run `npm run export-session` on the Mac, then
   `scp local/storage-state.json <host>:~/node-projects/disney-dining/local/`.
-- [ ] **5.9 The decisive test:** on the VM, run `npm run check` **once**.
+- [x] ~~skipped~~ **5.9 The decisive test:** on the VM, run `npm run check` **once**.
   - **If** you get JSON results: continue.
   - **If** you get HTML, a 403 or a Queue-it timeout: Disney is blocking the data-center IP.
     **Stop**, record that in the Progress log, and tell the user the VM won't work. Keep the Mac setup.
-- [ ] **5.10 Install the cron job** with `crontab -e`, using absolute paths (find them with `which node`):
+- [x] ~~skipped~~ **5.10 Install the cron job** with `crontab -e`, using absolute paths (find them with `which node`):
   ```
   SHELL=/bin/bash
   */10 * * * * cd $HOME/node-projects/disney-dining && sleep $((RANDOM % 120)) && flock -n /tmp/disney-dining.lock /usr/bin/node --env-file-if-exists=.env scripts/run-check.js >> local/logs/cron.log 2>&1
   ```
-- [ ] **5.11 Verify:** after 30 minutes, `local/logs/cron.log` on the VM shows 3 runs with no errors.
+- [x] ~~skipped~~ **5.11 Verify:** after 30 minutes, `local/logs/cron.log` on the VM shows 3 runs with no errors.
   Tell the user that when the session expires, a "checker failing" alert arrives, and they repeat 5.8.
-- [ ] **5.12 Note for the user:** Oracle may reclaim Always Free VMs it considers idle. Ask them to
+- [x] ~~skipped~~ **5.12 Note for the user:** Oracle may reclaim Always Free VMs it considers idle. Ask them to
   check the instance's status in the Oracle console after a week.
 
 **Done when:** 5A is verified, and 5B is either verified or recorded as blocked. Add a Progress log entry.
@@ -1036,3 +1039,30 @@ results, and surprises or open issues for the next session.
   0 open, 2 none, 0 unreadable`. `lastHeartbeatDate` was set. This confirms the restaurant success path
   (date-keyed shape) parses live. The 09:00 rule is `HEARTBEAT_HOUR` in `src/state.js`: it keeps the
   daily message and any canary-failure warning out of the overnight hours.
+- **2026-10-30 (Phase 5A):** Built `scripts/watch.js` (npm script `watch`), `src/schedule.js`, file
+  logging in `src/log.js` (`enableFileLog`, rotates `local/logs/watch.log` to `.1` over 5 MB at
+  start), and `runOnce` in `src/check.js`, which `run-check.js` and `watch.js` now share (it holds
+  the check, alerts, health counters and daily canary). README updated with `caffeinate -i npm run
+  watch`. Verified: `npm test` passes 42 of 42; a live run with `CHECK_INTERVAL_MIN=1` did 3 cycles
+  (all `NONE`, no alerts, sleeps of 2.5, 2.4 and 1.5 min), and `local/logs/watch.log` has the lines;
+  `npm run check` still exits 0 after the refactor. **5B is not started** (see below).
+  - **Bug found and fixed:** the first live test exited with code 130 and no "Watcher stopped". Playwright
+    installs its own SIGINT/SIGTERM handlers, closes the browser, and then kills the process,
+    pre-empting ours. `src/browser.js` now launches with `handleSIGINT/SIGTERM/SIGHUP: false`. After the
+    fix: exit code 0, "Watcher stopped" within a second, no leftover Chromium (checked with a
+    one-cycle rerun).
+  - **Interpretation of "plus or minus a random 0-2 minutes":** the sleep is the interval ±(0-2) min,
+    never under 1 min, doubled per consecutive error run, capped at 60 min, reset after a success.
+    The watcher restarts the browser after every 3rd error run in a row. A failed reload or a failed
+    browser open counts as an error run (and feeds the "checker failing" alert after 3).
+  - **5B (Oracle VM) needs a user decision before it can start.** Headless Chromium is rejected at page
+    load (`ERR_HTTP2_PROTOCOL_ERROR`, Phase 2), and 5.5 (`export-session`) and the VM both need a
+    headless browser. Not worked around. Also 5.6 is a USER STOP for VM details.
+  - Not exercised live: error backoff, the browser restart after 3 error runs, and a Queue-it wait.
+    The sleep maths is unit-tested; the rest is straightforward but unproven.
+- **2026-10-30 (Phase 5 wrap-up):** The user chose to skip 5B (the Oracle VM) because headless
+  Chromium is blocked by Disney, so Mac-only is fine. Tasks 5.5–5.12 are marked skipped and nothing
+  was built for them (no `export-session.js`, no VM setup, no cron). Phase 5 is done with 5A only:
+  the Mac watcher (`caffeinate -i npm run watch`). If this is revisited, the open question is how to
+  run a browser on a VM without being rejected (headed under Xvfb, or the new headless mode), which
+  is a bot-detection risk to weigh first. `STORAGE_STATE` support in `src/browser.js` stays, unused.
