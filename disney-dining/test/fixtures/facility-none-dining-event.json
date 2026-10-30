@@ -1,0 +1,6 @@
+{
+  "status": 404,
+  "url": "https://disneyworld.disney.go.com/dine-res/api/availability/4/2026-12-11?facilityId=17736025;entityType=dining-event&entityType=dining-event",
+  "contentType": "application/json",
+  "text": "{\"conversationId\":\"65b8494b-d6ac-4951-a6d4-51995dea3681\",\"correlationId\":\"e30c48ee-b258-497d-9ef3-ad6e13a73aac\",\"errorType\":\"OFFER_NOT_FOUND\",\"errorCode\":\"9010\",\"errorMessage\":\"WARN: GET_OFFERS DINING-EVENT: Offers not found for dine events 17736025.\",\"statusCode\":404,\"error\":\"Request failed with status code 404\"}"
+}

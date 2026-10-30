@@ -9,6 +9,8 @@
   },
   "scripts": {
     "validate-config": "node scripts/validate-config.js",
+    "login": "node --env-file-if-exists=.env scripts/login.js",
+    "spike": "node --env-file-if-exists=.env scripts/spike.js",
     "test": "node --test"
   },
   "dependencies": {

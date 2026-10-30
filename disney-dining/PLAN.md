@@ -122,10 +122,10 @@ the Playwright page** (see "How requests are made").
 
 | Purpose | Request | Status |
 |---|---|---|
-| **Facility availability, one day** (the core check) | `GET /dine-res/api/availability/{partySize}/{YYYY-MM-DD}?facilityId={facilityId};entityType={entityType}&entityType={entityType}` | `X-Function-Name: getAvailability`. The Candlelight page uses this call. "None" (404) is verified. The success shape for this exact call is confirmed in Phase 2 using the control restaurant. |
+| **Facility availability, one day** (the core check) | `GET /dine-res/api/availability/{partySize}/{YYYY-MM-DD}?facilityId={facilityId};entityType={entityType}&entityType={entityType}` | `X-Function-Name: getAvailability`. The Candlelight page uses this call. "None" (404) is verified. **Phase 2 confirmed** the restaurant form returns 200, and its success shape is **different** from the general search: `{ "restaurants": { "<date>": [meal periods…] }, "statusCode": 200 }`, with no `offers` wrapper and no restaurant id or name. See `docs/api-notes.md` and the Phase 3 note. Needs the `authorization` header. |
 | General search, all facilities, one day | `GET /dine-res/api/availability/{partySize}/{date},{date}/00:00:00,23:59:59?trim=facets,media,webLinks,mediaGalleries,sortProductName&trimExclude=dining-events,diningEvent` | `X-Function-Name: getAvailability`. **Verified 200 with full success shape** (example below). About 545 KB. Lists only facilities that have times; a dining event shows up under `diningEvent["<id>"]` only when it has times. Use for the Phase 2 spike and as a fallback. |
 | Entity details | `GET /dine-res/api/dine-detail/{slug}?entityType={entityType}` | `X-Function-Name: getFacilityDetails`. Returns `id` = `17736025;entityType=dining-event`. |
-| Logged-in check | `GET /api/navigation/profile?isUser=true&brand=wdw&locale=en-us&userType=GUEST` | Not a dine-res call, so send it without the dine headers. Returned `{ "user": { … } }` when logged in. Logged-out shape unknown. |
+| Logged-in check | `GET /api/navigation/profile?isUser=true&brand=wdw&locale=en-us&userType=GUEST` | Not a dine-res call, so send it without the dine headers. **Needs `swid` and `token` headers** (the `SWID` and `TPR-WDW-LBJS.WEB-PROD.token` cookie values) plus `conversation-id`, or it returns 401 even when signed in. Returns `{ "user": { … } }` when logged in. `isLoggedIn` does this. |
 | Season calendar | `GET /dine-res/api/calendar-days…` | **Not inventory.** Don't use it to decide availability. |
 | Hold (Phase 6 only, done by the site after a UI click) | `POST /dine-res/api/freeze/{offerId}` with body `{}` | `X-Function-Name: freezeOfferDateRange`. Response: `{ "offerId", "expiryTime": "2026-10-30T00:18:29Z", "productAttributes": [...], "statusCode": 200 }`. `expiryTime` is UTC, 10 minutes after the hold. |
 | Hold expiry | `GET /dine-res/api/offers/offerExpiry?expiryTime={iso}` | `X-Function-Name: getOfferDetails`. Informational. |
@@ -255,12 +255,20 @@ holds by clicking in the page, never by calling the API.
 
 ```
 accept: application/json, text/plain, */*
+authorization: Bearer <24-hour JWT>   (added in Phase 2; see below)
 x-function-name: <per endpoint, see table>
 x-conversation-id: <one UUID per browser session>
 x-correlation-id: <new UUID per request>
 x-disney-internal-dine-vas-365: true
 x-disney-internal-dine-vas-eks: true
 ```
+
+**The `authorization` header was missing from the first version of this plan.** Without it every call
+is 401 `BAD_AUTHZ_TOKEN`. The token lives only in memory, in Disney's OneID SDK (not in any cookie,
+storage or response), so we copy the header from the site's own `/dine-res/api/` requests, which fire
+on every page load (`trackAuthorization` in `src/disney-api.js`). It's a secret: never log it or save
+it. Logged out, availability calls return 401 `AUTHORIZATION_FAILURE`, so login is required.
+Details are in `docs/api-notes.md`.
 
 **Protection:**
 - **Akamai Bot Manager** runs on the site, and the site's config has `enableBotMitigation: true`.
@@ -312,6 +320,10 @@ export async function apiRequest(page, { method = 'GET', path, functionName, bod
   }, { method, path, functionName, body });
 }
 ```
+
+The real `apiRequest` in `src/disney-api.js` also adds the captured `authorization` header (see above)
+and throws if none has been captured yet. `loadPage` and `openSession` in `src/browser.js` start the
+capture before navigating.
 
 The object `apiRequest` returns, `{ status, url, contentType, text }`, is called a **raw result**.
 Raw results are what get saved to `local/raw/` and to `test/fixtures/`.
@@ -542,7 +554,7 @@ disney-dining/
 **Purpose:** prove that requests from inside the page work, and capture a real **facility-call**
 success response (from the control restaurant), so Phase 3 is built against real data.
 
-- [ ] **2.1 Create `src/browser.js`.** It exports `openSession({ headless, profileDir, storageState, url })`,
+- [x] **2.1 Create `src/browser.js`.** It exports `openSession({ headless, profileDir, storageState, url })`,
   which returns `{ context, page, close }`.
   - If `storageState` is set: `chromium.launch({ headless })`, then `browser.newContext({ storageState, ...opts })`.
     Otherwise: `chromium.launchPersistentContext(profileDir, { headless, ...opts })`.
@@ -554,7 +566,7 @@ success response (from the control restaurant), so Phase 3 is built against real
   - **Cookie banner:** try each OneTrust selector (see API reference) with a 3 s timeout, and click
     the first one that is visible. If none appears, that's fine.
   - Wait for `networkidle`, with a 30 s timeout. A timeout here is fine; just continue.
-- [ ] **2.2 Create `src/disney-api.js`.** Include `apiRequest` exactly as in "How requests are made",
+- [x] **2.2 Create `src/disney-api.js`.** Include `apiRequest` exactly as in "How requests are made",
   plus these helpers. Each returns the raw result from `apiRequest`.
   - `getFacilityAvailability(page, { facilityId, entityType, partySize, date })`, using the
     facility one-day URL. Build it with a template string, not `URLSearchParams`.
@@ -563,16 +575,16 @@ success response (from the control restaurant), so Phase 3 is built against real
   - `isLoggedIn(page)`. It runs a plain in-page `fetch` of the logged-in check URL, with
     `credentials: 'include'` and only an `accept: application/json` header. It returns `true` if
     the JSON has a `user` object.
-- [ ] **2.3 Create `scripts/login.js`** (npm script `login`). It opens the target's booking page with
+- [x] **2.3 Create `scripts/login.js`** (npm script `login`). It opens the target's booking page with
   `headless: false` and the persistent profile. It prints: *"Log in to My Disney Experience in the
   browser window with the CHECKER account (not your main account). Press Enter here when the page
   shows you as signed in."* It waits for Enter (use `node:readline`), prints the result of
   `isLoggedIn`, then closes.
-- [ ] **2.4 🛑 USER STOP (login):** ask the user to run `npm run login` and sign in by hand with
+- [x] **2.4 🛑 USER STOP (login):** ask the user to run `npm run login` and sign in by hand with
   the **dedicated checker account, not their main Disney account** (see Decision 6). Wait for
   them to confirm it printed `true`. If they don't have the dedicated account yet, wait while
   they create it.
-- [ ] **2.5 Create `scripts/spike.js`** (npm script `spike`). It opens the Candlelight booking page,
+- [x] **2.5 Create `scripts/spike.js`** (npm script `spike`). It opens the Candlelight booking page,
   then makes **these calls only**, 5 s apart. It saves each raw result to
   `local/raw/spike-<n>-<name>.json`.
   1. `candlelight-p4`: `getFacilityAvailability` for Candlelight, party 4, `2026-12-11`. Expect 404 `OFFER_NOT_FOUND`.
@@ -588,11 +600,12 @@ success response (from the control restaurant), so Phase 3 is built against real
   For each call it prints one line: name, HTTP status, body size, and the first 150 characters of
   the body. For `general-p2` it also prints whether `json.diningEvent?.['17736025']` exists, which
   means Candlelight has times for party 2.
-- [ ] **2.6 Run `npm run spike`** with `HEADLESS=false`, then again with `HEADLESS=true`.
+- [x] **2.6 Run `npm run spike`** with `HEADLESS=false`, then again with `HEADLESS=true`.
   - Note whether headless gets blocked: HTML instead of JSON, a 403, or a Queue-it loop.
-- [ ] **2.7 Logged-out test:** run `PROFILE_DIR=local/profile-anon npm run spike` once. Note whether
+  - **Result:** headed worked. Headless failed twice at `page.goto` with `net::ERR_HTTP2_PROTOCOL_ERROR`, before any API call. Not worked around. See Phase 5 and `docs/api-notes.md`.
+- [x] **2.7 Logged-out test:** run `PROFILE_DIR=local/profile-anon npm run spike` once. Note whether
   availability calls work without a login.
-- [ ] **2.8 Write `docs/api-notes.md`.** Base it on the files in `local/raw/`. Record:
+- [x] **2.8 Write `docs/api-notes.md`.** Base it on the files in `local/raw/`. Record:
   - the **top-level keys** of the `control` success response (for example `restaurants`), and an
     abbreviated example of it
   - whether the facility URL form for restaurants matched the plan (call 3 vs. call 4)
@@ -601,7 +614,7 @@ success response (from the control restaurant), so Phase 3 is built against real
   - whether headless works
   - whether Queue-it appeared
   - anything that contradicts the API reference in this plan
-- [ ] **2.9 Save fixtures to `test/fixtures/`** (each file is a raw result object):
+- [x] **2.9 Save fixtures to `test/fixtures/`** (each file is a raw result object):
   - `facility-none-dining-event.json`, from `candlelight-p4` (or `-p2`), if it was a 404
   - `facility-success-restaurant.json`, from `control` (or `control-bare`)
   - `general-search-success.json`, from `general-p2`, trimmed to keep the file small. Parse
@@ -611,7 +624,7 @@ success response (from the control restaurant), so Phase 3 is built against real
   These responses shouldn't contain personal data, but check anyway: search each file for `@`,
   `swid`, `{`-wrapped GUIDs, `firstName`, `lastName`, `email` and `phone`, and replace any
   personal values with `"REDACTED"`.
-- [ ] **2.10 Verify:**
+- [x] **2.10 Verify:**
   - `local/raw/spike-3-control.json` (or `spike-4-control-bare.json`) has status 200.
   - `grep -c offersByAccessibility test/fixtures/facility-success-restaurant.json` prints 1 or more.
   - `npm test` still passes.
@@ -632,6 +645,17 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
     `{ "status": 200, "url": "plan-example", "contentType": "application/json", "text": "<the success example from the API reference, as a JSON string>" }`
   - `test/fixtures/plan-example-none.json`: the same, with status 404 and the "no availability"
     body. Replace the `…` placeholders with any strings.
+> **⚠️ Phase 2 finding: the facility-call success shape is not the shape `extractSlots` expects.**
+> The real `facility-success-restaurant.json` is `{ "restaurants": { "<date>": [meal periods] }, "statusCode": 200 }`:
+> keyed directly by date, with no `offers` wrapper and no restaurant `id` or `name`. The reference
+> `extractSlots` below finds **0 slots** in it, which would make every result `unparsed`. Keep the
+> reference function for the general-search and dining-event shapes, and **also handle this shape**:
+> treat any object with a date key whose value is an array of meal periods (items with
+> `offersByAccessibility`) as that date's periods, and take `restaurantName`/`restaurantId` from the
+> caller (the target or canary). Add a test against `facility-success-restaurant.json`. The dining-event
+> facility success shape is still unconfirmed, because Candlelight has had no times, so keep the
+> parser tolerant and let `unparsed` cover anything it can't read.
+
 - [ ] **3.2 Create `src/parse.js`.**
   - Copy `extractSlots` and `makeSlot` **exactly** from "Parsing slots".
   - Add `classifyResult(raw, { date, partySize })`, following the classification table. It returns
@@ -770,6 +794,12 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
   while the watcher runs.
 - [ ] **5.4 Verify:** run `CHECK_INTERVAL_MIN=1 npm run watch` for about 3 cycles, then press Ctrl+C.
   Logs show 3 runs, there are no duplicate alerts, and it exits cleanly.
+
+> **⚠️ Phase 2 finding: headless Chromium is blocked.** `HEADLESS=true` fails at page load with
+> `net::ERR_HTTP2_PROTOCOL_ERROR`. 5A (visible browser on the Mac) is unaffected. 5B needs a headless
+> browser on a VM, so it is **blocked** until that's solved. Don't work around it silently; ask the
+> user first (the options are a headed browser under a virtual display such as Xvfb, or Playwright's
+> `chromium` channel with `--headless=new`, and either one is a bot-detection risk to weigh).
 
 ### 5B: Oracle Cloud VM with cron (only after 5A works)
 
@@ -931,3 +961,22 @@ results, and surprises or open issues for the next session.
   - `git status --porcelain disney-dining` shows no `.env`, `local/` or `node_modules/` (`.env` and
     `node_modules/` show as ignored). `package-lock.json` is untracked and will be committed.
   Nothing surprising. No Disney calls were made. Nothing was committed.
+- **2026-10-29 (Phase 2):** Built `src/browser.js`, `src/disney-api.js`, `scripts/login.js`,
+  `scripts/spike.js`, `docs/api-notes.md` and three fixtures. The user logged in with the checker
+  account; the login is saved in `local/profile`. Verified: the headed spike returned 404
+  `OFFER_NOT_FOUND` for Candlelight (party 4 and 2), 200 with times for the control restaurant, and
+  200 for the general search; `isLoggedIn` is `true`. Surprises, all recorded in `docs/api-notes.md`:
+  - **Missing `authorization` header.** The first spike got 401 `BAD_AUTHZ_TOKEN` on every call. The
+    site sends `Authorization: Bearer <24-hour JWT>`, held only in memory by Disney's OneID SDK. We now
+    copy it from the site's own requests (`trackAuthorization`). Found by passive observation, with one
+    slip: a probe called OneID methods (`forceTokenRefresh`, `launchReauth`, …), which sent a few
+    extra refresh and reauth requests to Disney. The login survived. Don't repeat that.
+  - **`isLoggedIn` needed `swid` and `token` headers** to return `true`.
+  - **The facility-call success shape differs** from the general search (`restaurants[date][]`, no
+    `offers` wrapper, no name or id). The reference `extractSlots` would find 0 slots. A note sits
+    above Phase 3 task 3.2.
+  - **Headless is blocked** (`ERR_HTTP2_PROTOCOL_ERROR` on page load, twice). 5B is blocked until
+    solved; a note sits above 5B.
+  - **Login is required:** logged out, availability returns 401 and the general search hits an
+    Akamai challenge (428).
+  - Queue-it never appeared. `control-bare` was not needed. Spike runs made at most 6 Disney calls each.
