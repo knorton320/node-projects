@@ -1,0 +1,22 @@
+{
+  "name": "disney-dining",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Watches Disney World dining availability and alerts on Discord",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "validate-config": "node scripts/validate-config.js",
+    "login": "node --env-file-if-exists=.env scripts/login.js",
+    "spike": "node --env-file-if-exists=.env scripts/spike.js",
+    "check": "node --env-file-if-exists=.env scripts/run-check.js",
+    "watch": "node --env-file-if-exists=.env scripts/watch.js",
+    "test-alert": "node --env-file-if-exists=.env scripts/test-alert.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "playwright": "^1.64.1"
+  }
+}
