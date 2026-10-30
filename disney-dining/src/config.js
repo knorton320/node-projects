@@ -95,3 +95,7 @@ export function loadConfig(path = 'config/targets.json') {
     canary: raw.canary ?? null,
   };
 }
+
+export function bookingUrl(target) {
+  return `https://disneyworld.disney.go.com/dine-res/${target.entityType}/${target.slug}/`;
+}

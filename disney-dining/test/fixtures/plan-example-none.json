@@ -1,0 +1,6 @@
+{
+  "status": 404,
+  "url": "plan-example",
+  "contentType": "application/json",
+  "text": "{\"conversationId\":\"plan-example\",\"correlationId\":\"plan-example\",\"errorType\":\"OFFER_NOT_FOUND\",\"errorCode\":\"9010\",\"errorMessage\":\"WARN: GET_OFFERS DINING-EVENT: Offers not found for dine events 17736025.\",\"statusCode\":404,\"error\":\"Request failed with status code 404\"}"
+}

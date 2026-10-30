@@ -640,7 +640,7 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
 **Requires:** Phase 2 done, and `test/fixtures/facility-success-restaurant.json` exists.
 **Touches Disney:** yes in 3.7 only.
 
-- [ ] **3.1 Create the plan-example fixtures** as raw result objects:
+- [x] **3.1 Create the plan-example fixtures** as raw result objects:
   - `test/fixtures/plan-example-success.json`:
     `{ "status": 200, "url": "plan-example", "contentType": "application/json", "text": "<the success example from the API reference, as a JSON string>" }`
   - `test/fixtures/plan-example-none.json`: the same, with status 404 and the "no availability"
@@ -656,18 +656,18 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
 > facility success shape is still unconfirmed, because Candlelight has had no times, so keep the
 > parser tolerant and let `unparsed` cover anything it can't read.
 
-- [ ] **3.2 Create `src/parse.js`.**
+- [x] **3.2 Create `src/parse.js`.**
   - Copy `extractSlots` and `makeSlot` **exactly** from "Parsing slots".
   - Add `classifyResult(raw, { date, partySize })`, following the classification table. It returns
     `{ status: 'available' | 'none' | 'unparsed' | 'error', slots, error? }`, and adds
     `partySize` to every slot.
-- [ ] **3.3 Add `filterByTimeWindow(slots, timeWindow)`** to `src/parse.js`. `null` keeps
+- [x] **3.3 Add `filterByTimeWindow(slots, timeWindow)`** to `src/parse.js`. `null` keeps
   everything. The buckets are `morning` (06:00–11:59), `afternoon` (12:00–15:59) and `evening`
   (16:00–23:59). `{start, end}` is inclusive.
   - If an `available` result loses all its slots to the window, its status becomes `none`. Keep a
     `filteredOut` count for logs.
   - The window never applies to `unparsed`; those always alert.
-- [ ] **3.4 Create `test/parse.test.js`**, covering:
+- [x] **3.4 Create `test/parse.test.js`**, covering:
   - `plan-example-success.json` with `extractSlots(json, '2026-12-11')`:
     - 4 slots for Chefs de France
     - 2 Fantasmic slots, with `eventLabel` `"Fantasmic! Viewing 2nd Show"` and `restaurantName`
@@ -678,12 +678,12 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
   - `general-search-success.json`: `extractSlots` finds 1 or more slots.
   - Inline cases: 403 → `error`; an HTML body → `error`; invalid JSON → `error`; 200 with `{}` → `unparsed`.
   - Every `timeWindow` form, including the "all filtered out → `none`" case.
-- [ ] **3.5 Create `src/check.js`.** It exports `runCheck({ config, page })`, which:
+- [x] **3.5 Create `src/check.js`.** It exports `runCheck({ config, page })`, which:
   - loops over targets × dates × partySizes, waiting 5 s between calls
   - calls `getFacilityAvailability`, then `classifyResult`, then `filterByTimeWindow`
   - saves each raw result to `local/raw/check-<target slug>-<date>-p<size>.json`, overwriting the previous one
   - returns `{ results: [{ target, date, partySize, status, slots, error }], hadErrors }`
-- [ ] **3.6 Create `scripts/run-check.js`** (npm script `check`). It:
+- [x] **3.6 Create `scripts/run-check.js`** (npm script `check`). It:
   - loads the config, calls `openSession` with the env settings, then `runCheck`, then closes the browser
   - prints one line per result:
     - `NONE   Candlelight 2026-12-11 party 4`
@@ -692,7 +692,7 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
     - `CHECK  Candlelight 2026-12-11 party 2  Disney says open but times unreadable`
     - `ERROR  Candlelight 2026-12-11 party 4  <reason>`
   - exits with code 0 if there were no errors, otherwise 1
-- [ ] **3.7 Verify:**
+- [x] **3.7 Verify:**
   - `npm test` passes.
   - `npm run check` prints a line for party 4 and party 2 on 2026-12-11, and exits with 0.
 
@@ -980,3 +980,22 @@ results, and surprises or open issues for the next session.
   - **Login is required:** logged out, availability returns 401 and the general search hits an
     Akamai challenge (428).
   - Queue-it never appeared. `control-bare` was not needed. Spike runs made at most 6 Disney calls each.
+- **2026-10-30 (Phase 3):** Built `src/parse.js`, `src/check.js`, `scripts/run-check.js` (npm script
+  `check`), `test/parse.test.js`, `test/check.test.js`, and the `plan-example-success.json` and
+  `plan-example-none.json` fixtures. Verified: `npm test` passes 25 of 25, and `npm run check` printed
+  `NONE` for Candlelight party 4 and party 2 on 2026-12-11 and exited 0 (run twice, 2 Disney calls
+  each, 5 s apart). Notes for the next session:
+  - `extractSlots` and `makeSlot` are verbatim from the plan. Per the Phase 2 finding, I added
+    `extractDateKeyedSlots` for the facility call's `restaurants[date][]` shape. `classifyResult` uses
+    it only when `extractSlots` finds nothing, and takes `restaurantName`/`restaurantId` from the caller
+    (the target, for restaurant targets). Tested against the real `facility-success-restaurant.json`.
+  - `filterByTimeWindow(slots, tw)` returns the filtered slots. `applyTimeWindow(result, tw)` is the
+    one that turns an emptied `available` into `none` and sets `filteredOut`. Slots with no readable
+    time are kept, and `unparsed` is never filtered.
+  - `runCheck` refuses a config that needs more than 20 calls per run, and turns a thrown call into an
+    `error` result. It takes optional `gapMs` and `sleep` for tests. `bookingUrl(target)` is now in
+    `src/config.js`.
+  - The live check only exercised the "none" path, since Candlelight has nothing open. The success path
+    is covered by fixtures only, and a dining-event facility success is still unconfirmed. The canary
+    in Phase 4 will exercise the restaurant success path live.
+  - `OPEN` lines put `eventLabel` in parentheses, matching the plan's example line.
