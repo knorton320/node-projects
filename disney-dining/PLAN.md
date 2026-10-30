@@ -704,12 +704,12 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
 
 **Requires:** Phase 3 done. **Touches Disney:** yes in 4.7 only.
 
-- [ ] **4.1 🛑 USER STOP (webhook):** ask the user to create a Discord webhook. In Discord: Server
+- [x] **4.1 🛑 USER STOP (webhook):** ask the user to create a Discord webhook. In Discord: Server
   Settings → Integrations → Webhooks → New Webhook → choose a channel → Copy Webhook URL. They paste
   it into `.env` as `DISCORD_WEBHOOK_URL` **themselves**. Optionally they also set
   `DISCORD_MENTION_USER_ID` (Discord: User Settings → Advanced → Developer Mode, then right-click
   your name → Copy User ID). Don't ask them to paste the URL into chat.
-- [ ] **4.2 Create `src/notify.js`.** It exports `sendDiscord({ content, embeds })`, which POSTs JSON to
+- [x] **4.2 Create `src/notify.js`.** It exports `sendDiscord({ content, embeds })`, which POSTs JSON to
   the webhook with global `fetch`.
   - On HTTP 429, read `retry_after` (seconds) from the JSON body, wait that long, and retry once.
   - On any other failure, log the error and return `false`. Never throw, so alerting can't crash a check.
@@ -725,7 +725,7 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
   - `formatUnparsedAlert(result)`: title `⚠️ POSSIBLY OPEN: <target name>`, with the text
     "Disney returned availability but the times couldn't be read. Check the page now." Same URL
     and mention.
-- [ ] **4.3 Create `src/state.js`.** It keeps `local/state.json` in this shape:
+- [x] **4.3 Create `src/state.js`.** It keeps `local/state.json` in this shape:
   ```json
   { "alerted": {}, "unparsedAlertedAt": {}, "consecutiveErrorRuns": 0, "errorAlertSent": false, "lastHeartbeatDate": null }
   ```
@@ -735,7 +735,7 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
   - `unparsedAlertedAt` maps `slug|date|partySize` to the ISO time of the last unparsed alert.
   - It exports `loadState()` and `saveState(state)`. Save by writing a temp file and renaming it.
   - It exports `diffSlots(state, results)`, which returns `{ newSlots, goneKeys }`.
-- [ ] **4.4 Wire alerts into `scripts/run-check.js`**, after `runCheck`:
+- [x] **4.4 Wire alerts into `scripts/run-check.js`**, after `runCheck`:
   - **Availability:** send one alert per target/date/party size that has new slots. Then add those
     keys to `alerted`. Remove `goneKeys` from `alerted`, so a slot that disappears and comes back
     alerts again.
@@ -757,14 +757,14 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
     5. Otherwise send
        `⚠️ Canary failed (<status>): Chefs de France shows no times — the checker may be broken (API or page changed)`.
     6. Set `lastHeartbeatDate`.
-- [ ] **4.5 Create `scripts/test-alert.js`** (npm script `test-alert`). It sends a fake availability
+- [x] **4.5 Create `scripts/test-alert.js`** (npm script `test-alert`). It sends a fake availability
   alert built from `plan-example-success.json`, with the title prefixed `[TEST]`.
-- [ ] **4.6 Create `test/state.test.js`.** Use a temp folder for the state file. It covers:
+- [x] **4.6 Create `test/state.test.js`.** Use a temp folder for the state file. It covers:
   - new-slot detection, and the same slot under a different `eventLabel` counting as new
   - gone-slot removal
   - unparsed re-alert after 30 minutes but not before
   - the error counter reaching 3, and recovery
-- [ ] **4.7 Verify:**
+- [x] **4.7 Verify:**
   - `npm test` passes.
   - `npm run test-alert` posts to Discord. Ask the user to confirm they saw it.
   - `npm run check` runs twice in a row without sending a duplicate availability alert.
@@ -999,3 +999,35 @@ results, and surprises or open issues for the next session.
     is covered by fixtures only, and a dining-event facility success is still unconfirmed. The canary
     in Phase 4 will exercise the restaurant success path live.
   - `OPEN` lines put `eventLabel` in parentheses, matching the plan's example line.
+- **2026-10-30 (Phase 4):** Built `src/notify.js`, `src/state.js`,
+  `scripts/test-alert.js` (npm script `test-alert`), `test/state.test.js`, and wired alerts, health and
+  the daily canary into `scripts/run-check.js`. The user created the webhook and put it in `.env`
+  themselves (4.1). Verified: `npm test` passes 38 of 38; `npm run test-alert` returned success from
+  Discord (sent twice); `npm run check` ran twice, both exit 0, and `local/state.json` was created.
+  The user confirmed the `[TEST]` message arrived in Discord and pinged them, so 4.7 is ticked.
+  Open items and surprises:
+  - **Not verified live:** the daily heartbeat and canary only run on the first successful run at or
+    after 09:00 America/New_York, and the live runs happened at about 08:15. They are covered by unit
+    tests for the timing, but the canary call and its Discord message haven't run for real. Run
+    `npm run check` after 09:00 and look for the `💓 Checker alive — canary OK` message. Likewise,
+    Candlelight has nothing open, so duplicate suppression is verified by unit tests, not live.
+  - **`npm test` was changed** from `node --test` to `node --test test/*.test.js`. Plain `node --test`
+    picks up `scripts/test-alert.js` (its name starts with `test-`) and would post to Discord on every
+    test run.
+  - **`DISCORD_MENTION_USER_ID` must be a numeric user ID** (17-20 digits), not a username. The user
+    first entered a username, which can't ping. `notify.js` now ignores an invalid ID with a warning.
+  - **Alert content:** an availability alert lists only the *new* slots for that target/date/party
+    size. A slot is recorded as alerted only after Discord accepts the message, so a failed post is
+    retried on the next run. The failing-checker message uses the first error of the run that hit 3
+    in a row. If the browser can't even open, that counts as an error run too.
+  - **Canary:** the heartbeat is only recorded as sent when the Discord post succeeds. A canary that
+    fails still sends its warning once per day.
+- **2026-10-30 (Phase 4 follow-up, user request):** Availability and "possibly open" alerts now carry
+  a Pluto delivering the mail, in a code block in the message `content`. The mention stays outside
+  the block so it still pings. The dog (`src/pluto.txt`, 63 columns) is "PLUTO" by NeSS from the Fate
+  Zero collection on patorjk.com's Arial ASCII Art Gallery, kept byte-for-byte with the artist's
+  signature, as the user asked for those two sites as the base. `src/pluto.js` adds an envelope and
+  speech bubble above it. The other site the user gave (mlcu.com/pluto.html) is a 74x63 shaded
+  portrait of about 4,700 characters, over Discord's 2,000 limit, so it wasn't used. The tests check
+  that the art never contains three backticks in a row, keeps the signature, and the whole message
+  stays under 2,000 characters. Health and heartbeat messages are unchanged plain text.

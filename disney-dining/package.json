@@ -12,7 +12,8 @@
     "login": "node --env-file-if-exists=.env scripts/login.js",
     "spike": "node --env-file-if-exists=.env scripts/spike.js",
     "check": "node --env-file-if-exists=.env scripts/run-check.js",
-    "test": "node --test"
+    "test-alert": "node --env-file-if-exists=.env scripts/test-alert.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "playwright": "^1.64.1"
