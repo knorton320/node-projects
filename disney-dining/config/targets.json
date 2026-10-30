@@ -1,0 +1,21 @@
+{
+  "targets": [
+    {
+      "name": "EPCOT Candlelight Processional Dinner Package",
+      "slug": "candlelight-dinner-packages",
+      "facilityId": "17736025",
+      "entityType": "dining-event",
+      "dates": ["2026-12-11"],
+      "partySizes": [4, 2],
+      "timeWindow": null,
+      "enabled": true
+    }
+  ],
+  "canary": {
+    "name": "Chefs de France (canary)",
+    "facilityId": "90001373",
+    "entityType": "restaurant",
+    "partySize": 2,
+    "daysAhead": 30
+  }
+}

@@ -436,7 +436,7 @@ disney-dining/
 
 **Requires:** nothing. **Touches Disney:** no.
 
-- [ ] **1.1 Create `package.json`** in `disney-dining/` with exactly these fields:
+- [x] **1.1 Create `package.json`** in `disney-dining/` with exactly these fields:
   ```json
   {
     "name": "disney-dining",
@@ -452,8 +452,8 @@ disney-dining/
   }
   ```
   Later phases add more scripts. Each one uses the form `node --env-file-if-exists=.env scripts/<name>.js`.
-- [ ] **1.2 Install Playwright:** `npm install playwright`, then `npx playwright install chromium`.
-- [ ] **1.3 Create `.env.example`** with each variable and a comment:
+- [x] **1.2 Install Playwright:** `npm install playwright`, then `npx playwright install chromium`.
+- [x] **1.3 Create `.env.example`** with each variable and a comment:
   ```
   # Show the browser window (true while developing, false for cron)
   HEADLESS=false
@@ -471,7 +471,7 @@ disney-dining/
   LOG_LEVEL=info
   ```
   Then copy it: `cp .env.example .env`.
-- [ ] **1.4 Create `config/targets.json`:**
+- [x] **1.4 Create `config/targets.json`:**
   ```json
   {
     "targets": [
@@ -498,9 +498,9 @@ disney-dining/
   `timeWindow` is `null`, one of `"morning" | "afternoon" | "evening"`, or
   `{ "start": "17:00", "end": "20:00" }` (24-hour clock, park local time). The canary searches
   `daysAhead` days from today, so its date never goes stale.
-- [ ] **1.5 Create `src/log.js`.** It exports `log.debug/info/warn/error(msg, data?)`, which print
+- [x] **1.5 Create `src/log.js`.** It exports `log.debug/info/warn/error(msg, data?)`, which print
   `ISO-timestamp LEVEL msg {json}` and respect `LOG_LEVEL`.
-- [ ] **1.6 Create `src/config.js`.** It exports `loadConfig(path = 'config/targets.json')`, which reads
+- [x] **1.6 Create `src/config.js`.** It exports `loadConfig(path = 'config/targets.json')`, which reads
   and parses the file and validates it. Collect all problems, then throw one error that lists them.
   For each target:
   - `name`, `slug`, `facilityId` are non-empty strings
@@ -515,19 +515,19 @@ disney-dining/
 
   It returns `{ targets, canary }`, with only the enabled targets, and `canary` set to `null` if
   it's missing.
-- [ ] **1.7 Create `scripts/validate-config.js`.** It calls `loadConfig()` and prints one line per
+- [x] **1.7 Create `scripts/validate-config.js`.** It calls `loadConfig()` and prints one line per
   target, like `OK  EPCOT Candlelight… | 2026-12-11 | party 4,2 | any time`, plus
   `OK  canary Chefs de France (canary) | party 2 | 30 days ahead` if there is one. On error it
   prints the message and exits with code 1.
-- [ ] **1.8 Create `test/config.test.js`** with `node:test` and `node:assert/strict`:
+- [x] **1.8 Create `test/config.test.js`** with `node:test` and `node:assert/strict`:
   - the real `config/targets.json` loads
   - a bad date (`2026-02-30`), party size `0`, an unknown `entityType`, a bad `timeWindow` and a
     canary `daysAhead` of `90` each throw
 
   Write the bad configs to a temp folder with `fs.mkdtempSync(path.join(os.tmpdir(), 'dd-'))`.
-- [ ] **1.9 Create `README.md`**, 15 lines at most: what the project is, `npm install`, `npx playwright install chromium`,
+- [x] **1.9 Create `README.md`**, 15 lines at most: what the project is, `npm install`, `npx playwright install chromium`,
   `cp .env.example .env`, `npm run validate-config`, `npm test`, and "see PLAN.md for phases".
-- [ ] **1.10 Verify:**
+- [x] **1.10 Verify:**
   - `npm run validate-config` prints one `OK` line for Candlelight and one for the canary.
   - `npm test` passes all tests.
   - From the repo root, `git status --porcelain disney-dining` shows no `.env`, `local/` or `node_modules/`.
@@ -922,3 +922,12 @@ results, and surprises or open issues for the next session.
   - **Phase 4:** added a daily canary, and `eventLabel` is now part of the dedupe key.
   - **Phase 6:** rewritten to hold by clicking in the page, with a dry run first.
   - **Decision 7** (hold mode) waits for the user at the start of Phase 6.
+- **2026-10-29 (Phase 1):** Built the project scaffold: `package.json`, `.env.example` (copied to
+  `.env`), `config/targets.json`, `src/log.js`, `src/config.js`, `scripts/validate-config.js`,
+  `test/config.test.js` and `README.md`. Installed `playwright` (^1.64.1) and Chromium.
+  Verified:
+  - `npm run validate-config` printed one OK line for Candlelight and one for the canary.
+  - `npm test` passed 10 of 10.
+  - `git status --porcelain disney-dining` shows no `.env`, `local/` or `node_modules/` (`.env` and
+    `node_modules/` show as ignored). `package-lock.json` is untracked and will be committed.
+  Nothing surprising. No Disney calls were made. Nothing was committed.
