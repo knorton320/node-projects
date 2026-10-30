@@ -1031,3 +1031,8 @@ results, and surprises or open issues for the next session.
   portrait of about 4,700 characters, over Discord's 2,000 limit, so it wasn't used. The tests check
   that the art never contains three backticks in a row, keeps the signature, and the whole message
   stays under 2,000 characters. Health and heartbeat messages are unchanged plain text.
+- **2026-10-30 (Phase 4, canary verified live):** After 09:00 ET the user ran `npm run check`: two
+  `NONE` lines, and Discord received `💓 Checker alive — canary OK (26 times) — last result: 2 checks:
+  0 open, 2 none, 0 unreadable`. `lastHeartbeatDate` was set. This confirms the restaurant success path
+  (date-keyed shape) parses live. The 09:00 rule is `HEARTBEAT_HOUR` in `src/state.js`: it keeps the
+  daily message and any canary-failure warning out of the overnight hours.
