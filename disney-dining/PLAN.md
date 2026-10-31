@@ -112,6 +112,12 @@ parser can't silently report "nothing open" forever.
    - **b) Opt-in hold on the Mac** (`AUTO_HOLD=true`, visible browser only). For when the user is
      near the Mac. The reservation lands on the checker account.
    - **c) Hold while logged in to the main account.** This breaks Decision 6. Not recommended.
+8. **Wake-up channel (added 2026-10-31):** the first live hit (see Progress log) opened at 05:36 ET
+   and was gone within about 15 minutes. The Discord alert arrived while the user was asleep.
+   Availability and "possibly open" alerts therefore also go to **Pushover at emergency priority**
+   (priority 2). It rings through silent mode and Sleep Focus via iOS Critical Alerts, and repeats
+   until the user acknowledges it. Health, recovery, heartbeat and canary messages stay
+   Discord-only, so the alarm only sounds when there's something to book. Built in Phase 7.
 
 ---
 
@@ -415,7 +421,7 @@ disney-dining/
     parse.js            extractSlots, classifyResult, time windows      (Phase 3)
     check.js            one full run over all targets                   (Phase 3)
     state.js            dedupe + health counters in local/state.json    (Phase 4)
-    notify.js           Discord webhook                                 (Phase 4)
+    notify.js           Discord webhook + Pushover                      (Phase 4, 7)
     hold.js             UI-driven hold (only if Decision 7 = b)         (Phase 6)
   scripts/
     validate-config.js  (Phase 1)
@@ -426,6 +432,7 @@ disney-dining/
     watch.js            long-running loop                               (Phase 5)
     export-session.js   writes local/storage-state.json for the VM      (Phase 5)
     ui-snapshot.js      saves page structure for picking selectors      (Phase 6)
+    test-pushover.js    sends one test Pushover emergency alert         (Phase 7)
   test/
     fixtures/           raw results (examples from this plan + real ones from Phase 2)
     *.test.js           node:test tests (no network)
@@ -917,6 +924,149 @@ can't proceed. Add a Progress log entry that summarizes the answers from 2.8.
 
 ---
 
+## Phase 7: Wake-up alerts (Pushover)
+
+**Requires:** Phase 4 done (Phase 5A recommended). Doesn't depend on Phase 6, and can run before it.
+**Touches Disney:** no.
+
+**Why:** see Decision 8. Pushover's emergency priority (`priority=2`) repeats every `retry`
+seconds until the user acknowledges it in the app, or `expire` seconds pass. With Critical Alerts
+allowed on the iPhone, it rings through silent mode and Focus. The user created the Pushover
+account and application on 2026-10-31.
+
+**Pushover API facts (from pushover.net/api):**
+- `POST https://api.pushover.net/1/messages.json`, form-encoded or JSON.
+- Required fields: `token` (the application's API token), `user` (the user key) and `message`
+  (≤ 1024 characters).
+- Optional fields used here: `title` (≤ 250), `url` (≤ 512), `url_title` (≤ 100), `priority`,
+  `sound`, and `tags` (emergency only, used to cancel by tag later).
+- Priority 2 requires `retry` (seconds, minimum 30) and `expire` (seconds, maximum 10800).
+- Success is HTTP 200 with `{"status":1,"request":"…","receipt":"…"}`; the receipt only comes back
+  for priority 2.
+- On a 4xx, the body has `status: 0` and an `errors` array, and the request **must not be retried
+  unchanged** (bad key or bad input). Retry a 5xx or a network failure, no sooner than 5 seconds.
+- Both keys are 30-character alphanumeric strings. They are secrets, like the webhook URL.
+
+- [x] **7.1 🛑 USER STOP (keys and phone):** ask the user to:
+  1. Put the two keys in `.env` **themselves**, not in chat:
+     - `PUSHOVER_USER_KEY`: the **User Key** shown at the top of the pushover.net dashboard.
+     - `PUSHOVER_APP_TOKEN`: the **API Token/Key** on the application's page (pushover.net → Your
+       Applications → the app).
+  2. Install the Pushover app on the iPhone and log in to it. That registers the phone as a device.
+     The app is free for 30 days, then a $4.99 one-time purchase.
+  3. In the Pushover app's settings, turn on **Critical Alerts** and tap Allow when iOS asks. Without
+     this, emergency alerts arrive silently when the phone is on silent or in Sleep Focus.
+
+  Wait for them to confirm. **Verify** without printing the values:
+  ```
+  node --env-file-if-exists=.env -e "for (const k of ['PUSHOVER_APP_TOKEN','PUSHOVER_USER_KEY']) console.log(k, /^[A-Za-z0-9]{30}$/.test(process.env[k] ?? '') ? 'looks OK' : 'MISSING or wrong shape')"
+  ```
+  Both lines should say `looks OK`.
+
+  *Phase 7 session note (2026-10-31): both keys were already in `.env` and both lines said `looks OK`.
+  The phone steps (app installed, Critical Alerts allowed) can't be checked from here; the 7.8 phone
+  test confirms them.*
+- [x] **7.2 Update `.env.example`** with these lines, keys empty. Don't touch the user's `.env`; the
+  timings have defaults in code.
+  ```
+  # Pushover wake-up alerts (Phase 7). Leave both keys empty to turn Pushover off.
+  PUSHOVER_APP_TOKEN=
+  PUSHOVER_USER_KEY=
+  # Seconds between repeats until acknowledged (minimum 30), and how long to keep repeating
+  # (maximum 10800). Defaults: 30 and 900.
+  PUSHOVER_RETRY_SEC=30
+  PUSHOVER_EXPIRE_SEC=900
+  # Optional Pushover sound name (for example persistent or siren). Empty uses the app's default.
+  PUSHOVER_SOUND=
+  ```
+- [x] **7.3 Add Pushover to `src/notify.js`:**
+  - **`pushoverEnabled()`:** returns true when both keys are set.
+  - **`sendPushover({ title, message, url, urlTitle, priority = 2 }, { retryDelayMs = 5000 } = {})`:**
+    - If Pushover isn't enabled, return `false` without calling `fetch`.
+    - Otherwise POST a `URLSearchParams` body with `token`, `user`, `title` and `message`, cut to
+      the limits above, plus `url`, `url_title` and `priority`.
+    - For priority 2, also send `retry` (`PUSHOVER_RETRY_SEC`, default 30, never under 30), `expire`
+      (`PUSHOVER_EXPIRE_SEC`, default 900, never over 10800) and `tags=disney-dining`.
+    - Send `sound` only if `PUSHOVER_SOUND` is set.
+    - On HTTP 200 with `status: 1`, log the receipt id at info level (it isn't a secret) and return
+      `true`.
+    - On a 4xx, log the status and the `errors` array, and return `false` with no retry.
+    - On a 5xx or a thrown `fetch`, wait `retryDelayMs`, retry once, then give up with `false`.
+    - **Never throw. Never log the token, the user key or the request body.**
+  - **`formatPushoverAvailability(result)`:**
+    - `title`: `🍽️ OPEN: <target name>`.
+    - `message`: `Party <n> · <date>`, then one line per slot using the existing `slotLine`. If it
+      runs past 1024 characters, end with `…and N more`, the same way `slotList` does.
+    - `url`: `bookingUrl(target)`; `urlTitle`: `Open booking page`.
+    - No Pluto: the ASCII art doesn't fit and doesn't render in a push notification.
+  - **`formatPushoverUnparsed(result)`:**
+    - `title`: `⚠️ POSSIBLY OPEN: <target name>`.
+    - `message`: `Party <n> · <date>`, then `Disney returned availability but the times couldn't be
+      read. Check the page now.`
+    - Same `url` and `urlTitle` as the availability alert.
+- [x] **7.4 Wire it into `sendAlerts` in `src/check.js`:**
+  - **Both channels for real alerts:** for each availability alert and each due unparsed alert,
+    send Discord and Pushover together (`Promise.all`).
+  - **Changes Phase 4's rule:** record the slot in `alerted` (or the unparsed time) when **either**
+    channel accepted it, not only Discord. Otherwise a Discord outage would set off the emergency
+    alarm again on every run. Log one line per alert showing both outcomes, for example
+    `Alert sent { discord: true, pushover: true }`.
+  - **Discord only for everything else:** health, recovered, heartbeat and canary messages never go
+    to Pushover.
+  - **Startup line:** `scripts/watch.js` and `scripts/run-check.js` log
+    `Pushover wake-up alerts: on` or `off` at start, so `watch.log` shows whether the restarted
+    watcher has it.
+- [x] **7.5 Create `scripts/test-pushover.js`** (npm script `test-pushover`, run with
+  `--env-file-if-exists=.env`).
+  - Build an availability alert from `test/fixtures/plan-example-success.json` the way
+    `test-alert.js` does. Prefix the title with `[TEST]`.
+  - Send it at priority 2 with `expire` forced to 120, so it stops after about four repeats even if
+    nobody acknowledges it.
+  - Print success or failure and exit 0 or 1.
+  - It never touches Discord or Disney. Its name doesn't match `test/*.test.js`, so `npm test` won't
+    pick it up.
+- [x] **7.6 Tests:**
+  - **Create `test/notify.test.js`.** Stub `globalThis.fetch` and restore it after each test. Cover:
+    - no keys: returns `false` and never calls `fetch`
+    - the body has `priority=2`, `retry=30`, `expire=900`, `tags`, `url`, and a title and message
+      within the limits
+    - `retry` under 30 or `expire` over 10800 in the env are clamped
+    - a long slot list is cut to ≤ 1024 characters and ends with `…and N more`
+    - success returns `true`
+    - a 4xx returns `false` after exactly one call
+    - a 5xx is retried once (pass `retryDelayMs: 0`)
+  - **Extend `test/check.test.js`**, using the fake page it already uses. Route the stubbed `fetch` by
+    URL, with a fake `DISCORD_WEBHOOK_URL` and fake Pushover keys set in the test. Cover:
+    - a new slot sends one Discord post and one Pushover post
+    - Discord failing while Pushover succeeds still records the slot, and the next run sends neither
+      again
+    - the heartbeat sends a Discord post only
+- [x] **7.7 Docs:** add a short "Wake-up alerts (Pushover)" section to `README.md`: what it does,
+  the three `.env` lines, and `npm run test-pushover`. (This file's Project layout already lists
+  Phase 7's files.)
+- [ ] **7.8 Verify:**
+  - `npm test` passes.
+  - **Phone test.** Ask the user to put the phone on silent with Sleep Focus on, then run
+    `npm run test-pushover`. The user confirms that it:
+    - rang out loud despite silent mode and Focus
+    - repeated about every 30 seconds
+    - stopped when they acknowledged it in the app
+
+    If it arrived silently, Critical Alerts isn't allowed: go back to 7.1 step 3.
+  - **🛑 USER STOP (restart the watcher):** the running watcher loaded the old code at start, so it
+    won't send Pushover until restarted. Ask the user to press Ctrl+C in the watcher's terminal and
+    run `caffeinate -i npm run watch` again. Then check that `local/logs/watch.log` shows
+    `Pushover wake-up alerts: on`.
+  - **Don't run `npm run check` while the watcher is running.** Both open the same browser profile
+    (`local/profile`), and Chromium locks it.
+  - The live OPEN path can't be triggered on demand, because Candlelight rarely opens. The unit tests
+    cover it. Say so in the Progress log.
+
+**Done when:** the Verify checks pass and the user confirmed the phone test. Add a Progress log
+entry.
+
+---
+
 ## Risks
 
 - **Terms of service:** Disney's terms prohibit automated access. Keep the request rate modest, use
@@ -1066,3 +1216,30 @@ results, and surprises or open issues for the next session.
   the Mac watcher (`caffeinate -i npm run watch`). If this is revisited, the open question is how to
   run a browser on a VM without being rejected (headed under Xvfb, or the new headless mode), which
   is a bot-detection risk to weigh first. `STORAGE_STATE` support in `src/browser.js` stays, unused.
+- **2026-10-31 (Phase 7, tasks 7.1–7.7 done; 7.8 waiting on the user):**
+  - **Built:** `sendPushover`, `pushoverEnabled`, `formatPushoverAvailability` and
+    `formatPushoverUnparsed` in `src/notify.js`; `sendBoth` in `src/check.js` (Discord and Pushover
+    together for availability and unparsed alerts only); `scripts/test-pushover.js` (`npm run
+    test-pushover`, priority 2, `expire` forced to 120); Pushover lines in `.env.example`; a README
+    section; and a `Pushover wake-up alerts: on|off` startup line in `watch.js` and `run-check.js`.
+  - **Rule changed as planned:** a slot (or unparsed time) is recorded as alerted when **either**
+    channel accepts it, so a Discord outage doesn't re-ring the phone every run. Each alert logs
+    `Alert sent { discord, pushover }`.
+  - **Verified:** `npm test` passes 55 of 55 (13 new: `test/notify.test.js` and three `runOnce`
+    tests in `test/check.test.js`, using a fake page and a URL-routed `fetch` stub). Both keys in
+    `.env` pass the shape check. Nothing was sent to Pushover or Discord by the tests or by me.
+  - **Plan vs. repo:** `test/check.test.js` had no fake page to reuse, so I added a small one
+    (`fakePage`) that returns a fixture from `page.evaluate` after faking the captured Authorization
+    header. The `runOnce` tests write `local/raw/check-check-test-slug-*.json` (gitignored).
+  - **Not done:** the 7.8 phone test and the watcher restart are user steps. The live OPEN path
+    can't be triggered on demand (Candlelight rarely opens), so unit tests are its only coverage.
+- **2026-10-31 (planning, user request): first live hit; added Phase 7.**
+  - **The hit:** watcher run 90 at 05:36 ET found Candlelight party 4 open: 11:40 at Via Napoli
+    Ristorante e Pizzeria (Candlelight Processional 4:45 PM Show). Runs at 05:28 and 05:43 showed
+    `NONE`, so it was open for at most about 15 minutes. Party 2 never showed it.
+  - **The alert worked:** Discord delivered it (state cleared the slot on the next run, as designed),
+    but the user was asleep.
+  - **Added:** Decision 8 and Phase 7 (Pushover emergency alerts for availability and "possibly
+    open" only). The user created the Pushover account and application today. Nothing was built.
+  - **Open idea, not planned:** a shorter check interval (currently 7–10 minutes) given how short
+    the window was. Needs a user decision and a look at the request budget.

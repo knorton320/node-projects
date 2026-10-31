@@ -2,6 +2,7 @@ import { formatResultLine, runOnce } from '../src/check.js';
 import { bookingUrl, loadConfig } from '../src/config.js';
 import { loadPage, openSession } from '../src/browser.js';
 import { enableFileLog, log } from '../src/log.js';
+import { pushoverEnabled } from '../src/notify.js';
 import { nextSleepMs } from '../src/schedule.js';
 
 const config = loadConfig();
@@ -49,6 +50,7 @@ const openBrowser = () => openSession({
   url,
 });
 
+log.info(`Pushover wake-up alerts: ${pushoverEnabled() ? 'on' : 'off'}`);
 log.info('Watcher started', { intervalMin, targets: config.targets.length });
 
 let session = null;

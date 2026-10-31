@@ -3,6 +3,10 @@ import { log } from './log.js';
 import { PLUTO_DELIVERY } from './pluto.js';
 
 const EMBED_FIELD_LIMIT = 1000;
+const PUSHOVER_URL = 'https://api.pushover.net/1/messages.json';
+const PUSHOVER_LIMITS = { title: 250, message: 1024, url: 512, urlTitle: 100 };
+const PUSHOVER_MIN_RETRY_SEC = 30;
+const PUSHOVER_MAX_EXPIRE_SEC = 10800;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -63,13 +67,13 @@ function slotLine(slot) {
   return `${slot.time ?? '??:??'}${name}${label}`;
 }
 
-// Keeps the list inside Discord's field size limit.
-function slotList(slots) {
+// Keeps the list inside a size limit (Discord's field limit unless told otherwise).
+function slotList(slots, limit = EMBED_FIELD_LIMIT) {
   const lines = [];
   let length = 0;
   for (const [i, slot] of slots.entries()) {
     const line = slotLine(slot);
-    if (length + line.length + 1 > EMBED_FIELD_LIMIT) {
+    if (length + line.length + 1 > limit) {
       lines.push(`…and ${slots.length - i} more`);
       break;
     }
@@ -109,5 +113,80 @@ export function formatUnparsedAlert(result, now = new Date()) {
       ],
       footer: { text: `Checked ${now.toISOString()}` },
     }],
+  };
+}
+
+export function pushoverEnabled() {
+  return Boolean(process.env.PUSHOVER_APP_TOKEN && process.env.PUSHOVER_USER_KEY);
+}
+
+// Posts to Pushover. Never throws, so alerting can't crash a check. The app token and user key are
+// secrets: neither they nor the request body are ever logged. `expireSec` overrides
+// PUSHOVER_EXPIRE_SEC (the test script uses it to stop after a few repeats).
+export async function sendPushover({ title, message, url, urlTitle, priority = 2 }, { retryDelayMs = 5000, expireSec } = {}) {
+  if (!pushoverEnabled()) return false;
+
+  const body = new URLSearchParams({
+    token: process.env.PUSHOVER_APP_TOKEN,
+    user: process.env.PUSHOVER_USER_KEY,
+    title: String(title ?? '').slice(0, PUSHOVER_LIMITS.title),
+    message: String(message ?? '').slice(0, PUSHOVER_LIMITS.message),
+    priority: String(priority),
+  });
+  if (url) {
+    body.set('url', url.slice(0, PUSHOVER_LIMITS.url));
+    if (urlTitle) body.set('url_title', urlTitle.slice(0, PUSHOVER_LIMITS.urlTitle));
+  }
+  if (priority === 2) {
+    const retry = Math.max(PUSHOVER_MIN_RETRY_SEC, Number(process.env.PUSHOVER_RETRY_SEC) || PUSHOVER_MIN_RETRY_SEC);
+    const expire = Math.min(PUSHOVER_MAX_EXPIRE_SEC, expireSec ?? (Number(process.env.PUSHOVER_EXPIRE_SEC) || 900));
+    body.set('retry', String(retry));
+    body.set('expire', String(expire));
+    body.set('tags', 'disney-dining');
+  }
+  if (process.env.PUSHOVER_SOUND) body.set('sound', process.env.PUSHOVER_SOUND);
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(PUSHOVER_URL, { method: 'POST', body });
+      const json = await res.json().catch(() => ({}));
+      if (res.status === 200 && json.status === 1) {
+        log.info('Pushover accepted the alert', { receipt: json.receipt });
+        return true;
+      }
+      if (res.status < 500) {
+        // Bad key or bad input: retrying the same request can't help.
+        log.error('Pushover rejected the alert', { status: res.status, errors: json.errors });
+        return false;
+      }
+      log.warn('Pushover server error', { status: res.status, attempt });
+    } catch (err) {
+      log.warn('Pushover request failed', { message: err.message, attempt });
+    }
+    if (attempt === 1) await sleep(retryDelayMs);
+  }
+  log.error('Pushover alert not delivered after a retry');
+  return false;
+}
+
+// Push notifications show no Pluto: the ASCII art doesn't fit and doesn't render.
+export function formatPushoverAvailability(result) {
+  const header = `Party ${result.partySize} · ${result.date}`;
+  // Leave room for a final "…and N more" line.
+  const list = slotList(result.slots, PUSHOVER_LIMITS.message - header.length - 1 - 24);
+  return {
+    title: `🍽️ OPEN: ${result.target.name}`,
+    message: `${header}\n${list}`,
+    url: bookingUrl(result.target),
+    urlTitle: 'Open booking page',
+  };
+}
+
+export function formatPushoverUnparsed(result) {
+  return {
+    title: `⚠️ POSSIBLY OPEN: ${result.target.name}`,
+    message: `Party ${result.partySize} · ${result.date}\nDisney returned availability but the times couldn't be read. Check the page now.`,
+    url: bookingUrl(result.target),
+    urlTitle: 'Open booking page',
   };
 }

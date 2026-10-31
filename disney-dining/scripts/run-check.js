@@ -2,12 +2,15 @@ import { runOnce, formatResultLine } from '../src/check.js';
 import { bookingUrl, loadConfig } from '../src/config.js';
 import { openSession } from '../src/browser.js';
 import { log } from '../src/log.js';
+import { pushoverEnabled } from '../src/notify.js';
 
 const config = loadConfig();
 if (config.targets.length === 0) {
   console.error('No enabled targets in config/targets.json');
   process.exit(1);
 }
+
+log.info(`Pushover wake-up alerts: ${pushoverEnabled() ? 'on' : 'off'}`);
 
 let session;
 let openError = null;

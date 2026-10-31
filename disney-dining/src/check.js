@@ -1,7 +1,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { getFacilityAvailability } from './disney-api.js';
 import { log } from './log.js';
-import { formatAvailabilityAlert, formatUnparsedAlert, sendDiscord } from './notify.js';
+import {
+  formatAvailabilityAlert,
+  formatPushoverAvailability,
+  formatPushoverUnparsed,
+  formatUnparsedAlert,
+  sendDiscord,
+  sendPushover,
+} from './notify.js';
 import { applyTimeWindow, classifyResult } from './parse.js';
 import {
   addDays,
@@ -95,9 +102,17 @@ function summarize(results) {
   return `${results.length} checks: ${count('available')} open, ${count('none')} none, ${count('unparsed')} unreadable`;
 }
 
+// Real alerts (something to book) go to Discord and Pushover together. Either one accepting counts
+// as delivered, so a Discord outage doesn't set off the emergency alarm again on every run.
+async function sendBoth(discordMessage, pushoverMessage) {
+  const [discord, pushover] = await Promise.all([sendDiscord(discordMessage), sendPushover(pushoverMessage)]);
+  log.info('Alert sent', { discord, pushover });
+  return discord || pushover;
+}
+
 async function sendAlerts({ config, results, page, state, now, hadErrors, firstError, gapMs, sleep }) {
-  // New availability: one alert per target/date/party size. Record a slot only once its alert is
-  // sent, so a failed Discord post is retried on the next run.
+  // New availability: one alert per target/date/party size. Record a slot only once an alert channel
+  // accepted it, so a total failure is retried on the next run.
   const { newSlots, goneKeys } = diffSlots(state, results);
   const byResult = new Map();
   for (const { key, result, slot } of newSlots) {
@@ -106,12 +121,15 @@ async function sendAlerts({ config, results, page, state, now, hadErrors, firstE
     byResult.get(result).slots.push(slot);
   }
   for (const [result, { keys, slots }] of byResult) {
-    if (await sendDiscord(formatAvailabilityAlert({ ...result, slots }, now))) markAlerted(state, keys, now);
+    const alertResult = { ...result, slots };
+    if (await sendBoth(formatAvailabilityAlert(alertResult, now), formatPushoverAvailability(alertResult))) {
+      markAlerted(state, keys, now);
+    }
   }
   clearGone(state, goneKeys);
 
   for (const result of results.filter((r) => r.status === 'unparsed')) {
-    if (shouldAlertUnparsed(state, result, now) && (await sendDiscord(formatUnparsedAlert(result, now)))) {
+    if (shouldAlertUnparsed(state, result, now) && (await sendBoth(formatUnparsedAlert(result, now), formatPushoverUnparsed(result)))) {
       markUnparsedAlerted(state, result, now);
     }
   }
