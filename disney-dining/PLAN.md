@@ -1044,7 +1044,7 @@ account and application on 2026-10-31.
 - [x] **7.7 Docs:** add a short "Wake-up alerts (Pushover)" section to `README.md`: what it does,
   the three `.env` lines, and `npm run test-pushover`. (This file's Project layout already lists
   Phase 7's files.)
-- [ ] **7.8 Verify:**
+- [x] **7.8 Verify:**
   - `npm test` passes.
   - **Phone test.** Ask the user to put the phone on silent with Sleep Focus on, then run
     `npm run test-pushover`. The user confirms that it:
@@ -1216,6 +1216,16 @@ results, and surprises or open issues for the next session.
   the Mac watcher (`caffeinate -i npm run watch`). If this is revisited, the open question is how to
   run a browser on a VM without being rejected (headed under Xvfb, or the new headless mode), which
   is a bot-detection risk to weigh first. `STORAGE_STATE` support in `src/browser.js` stays, unused.
+- **2026-10-31 (planning, user request): first live hit; added Phase 7.**
+  - **The hit:** watcher run 90 at 05:36 ET found Candlelight party 4 open: 11:40 at Via Napoli
+    Ristorante e Pizzeria (Candlelight Processional 4:45 PM Show). Runs at 05:28 and 05:43 showed
+    `NONE`, so it was open for at most about 15 minutes. Party 2 never showed it.
+  - **The alert worked:** Discord delivered it (state cleared the slot on the next run, as designed),
+    but the user was asleep.
+  - **Added:** Decision 8 and Phase 7 (Pushover emergency alerts for availability and "possibly
+    open" only). The user created the Pushover account and application today. Nothing was built.
+  - **Open idea, not planned:** a shorter check interval (currently 7–10 minutes) given how short
+    the window was. Needs a user decision and a look at the request budget.
 - **2026-10-31 (Phase 7, tasks 7.1–7.7 done; 7.8 waiting on the user):**
   - **Built:** `sendPushover`, `pushoverEnabled`, `formatPushoverAvailability` and
     `formatPushoverUnparsed` in `src/notify.js`; `sendBoth` in `src/check.js` (Discord and Pushover
@@ -1233,13 +1243,17 @@ results, and surprises or open issues for the next session.
     header. The `runOnce` tests write `local/raw/check-check-test-slug-*.json` (gitignored).
   - **Not done:** the 7.8 phone test and the watcher restart are user steps. The live OPEN path
     can't be triggered on demand (Candlelight rarely opens), so unit tests are its only coverage.
-- **2026-10-31 (planning, user request): first live hit; added Phase 7.**
-  - **The hit:** watcher run 90 at 05:36 ET found Candlelight party 4 open: 11:40 at Via Napoli
-    Ristorante e Pizzeria (Candlelight Processional 4:45 PM Show). Runs at 05:28 and 05:43 showed
-    `NONE`, so it was open for at most about 15 minutes. Party 2 never showed it.
-  - **The alert worked:** Discord delivered it (state cleared the slot on the next run, as designed),
-    but the user was asleep.
-  - **Added:** Decision 8 and Phase 7 (Pushover emergency alerts for availability and "possibly
-    open" only). The user created the Pushover account and application today. Nothing was built.
-  - **Open idea, not planned:** a shorter check interval (currently 7–10 minutes) given how short
-    the window was. Needs a user decision and a look at the request budget.
+- **2026-10-31 (Phase 7 wrap-up):** The phone test passed and the watcher was restarted.
+  - **Phone test:** the first `npm run test-pushover` arrived as Time Sensitive, buzzed once and
+    made no sound. Causes found on the phone, not in the code: the silent switch also muted the
+    sound previews, and the alert only showed as **Critical** once Critical Alerts was set up in
+    iOS Settings and in the Pushover app. After that the user confirmed it showed as Critical, played
+    the sound with the phone on silent, and repeated. Nothing in the code changed.
+  - **Repeat spacing:** repeats are at Pushover's 30-second minimum (`.env` has no
+    `PUSHOVER_RETRY_SEC`, so the default applies). It can't go lower. To make gaps feel shorter, use a
+    longer sound with `PUSHOVER_SOUND=persistent` or `siren`, or raise the Critical Alerts volume in
+    the Pushover app.
+  - **Watcher restart:** `local/logs/watch.log` shows `Pushover wake-up alerts: on` at 20:47:54Z
+    (2026-10-31), then run 2 with both checks `NONE`.
+  - **Not verified live:** the watcher ringing the phone for a real OPEN or POSSIBLY OPEN result.
+    Candlelight rarely opens, so the unit tests are the only coverage of that path.
